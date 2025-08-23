@@ -4,21 +4,18 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>ToDoリスト</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
   <style>
     /* --- デザインとカラー設定 --- */
     :root {
-      --bg: #f4f5f7; /* 背景を少し柔らかい色に */
+      --bg: #f4f5f7;
       --card: #ffffff;
-      --ink: #172b4d; /* 文字色を濃いネイビーに */
+      --ink: #172b4d;
       --muted: #6b778c;
-      --accent: #0052cc; /* アクセントカラーを落ち着いた青に */
+      --accent: #0052cc;
       --border: #dfe1e6;
       --checked: #9ca3af;
-      --radius: 8px; /* 角丸を少し控えめに */
-      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.12); /* カードに影を追加 */
+      --radius: 8px;
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.12);
     }
 
     /* --- 基本設定 --- */
@@ -27,10 +24,10 @@
       margin: 0;
       background: var(--bg);
       color: var(--ink);
-      /* フォントをNoto Sans JP（ゴシック系）に変更 */
-      font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      /* 外部フォントの読み込みを廃止し、iPad標準のフォントで安定動作させます */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Sans", "Noto Sans JP", sans-serif;
       line-height: 1.5;
-      font-size: 16px; /* 全体の文字サイズを少し大きく */
+      font-size: 16px;
     }
 
     /* --- ヘッダー --- */
@@ -56,15 +53,13 @@
       cursor: pointer;
       transition: background-color 0.2s;
     }
-    .controls button:hover, .controls label:hover {
-      background-color: #f4f5f7;
-    }
+    .controls button:hover, .controls label:hover { background-color: #f4f5f7; }
 
     /* --- メインコンテンツ --- */
     main { padding: 16px; }
     .cards {
       display: grid;
-      gap: 16px; /* カード間の余白を広げる */
+      gap: 16px;
       grid-template-columns: repeat(12, 1fr);
     }
 
@@ -72,8 +67,8 @@
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 16px; /* カード内の余白を広げる */
-      box-shadow: var(--shadow); /* 影を追加 */
+      padding: 16px;
+      box-shadow: var(--shadow);
     }
     .card h2, .weekday h3 {
       font-size: 16px;
@@ -82,32 +77,27 @@
       font-weight: 700;
     }
 
-    /* 月と週のカードを並べる設定 */
-    #month { grid-column: span 6; }
-    #week { grid-column: span 6; }
-    .week-grid { display: grid; gap: 16px; grid-template-columns: repeat(7, 1fr); grid-column: 1/-1; }
+    #month { grid-column: 1 / 7; }
+    #week { grid-column: 7 / 13; }
+    .week-grid { display: grid; gap: 16px; grid-template-columns: repeat(7, 1fr); grid-column: 1 / -1; }
 
-    /* --- ToDoアイテム（入力欄） --- */
+    /* --- ToDoアイテム --- */
     .item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
     .item input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
     .item input.text {
       flex: 1;
       border: none;
-      border-bottom: 1px solid var(--border); /* 下線を追加 */
+      border-bottom: 1px solid var(--border);
       background: transparent;
-      padding: 8px 4px; /* 入力欄を縦に大きく */
-      font-size: 15px; /* 入力文字を大きく */
-      font-family: inherit; /* bodyのフォントを引き継ぐ */
+      padding: 8px 4px;
+      font-size: 15px;
+      font-family: inherit;
       transition: border-color 0.2s;
     }
-    .item input.text:focus {
-      outline: none;
-      border-bottom-color: var(--accent); /* フォーカス時に下線の色を変更 */
-    }
+    .item input.text:focus { outline: none; border-bottom-color: var(--accent); }
     .item.checked input.text { text-decoration: line-through; color: var(--checked); }
 
-    /* --- iPad/タブレット向けレイアウト調整 --- */
-    /* 画面幅が1024px以下になったら縦並びにする */
+    /* --- タブレット向けレイアウト --- */
     @media (max-width: 1024px) {
       #month, #week { grid-column: span 12; }
       .week-grid {
