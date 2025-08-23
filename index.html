@@ -1,275 +1,187 @@
 <!DOCTYPE html>
-
 <html lang="ja">
-
 <head>
-
-  <meta charset="utf-8" />
-
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-
-  <title>ToDoリスト</title>
-
-  <style>
-
-    :root {
-
-      --bg: #f7f7fb;
-
-      --card: #ffffff;
-
-      --ink: #1f2937;
-
-      --muted: #6b7280;
-
-      --accent: #2563eb;
-
-      --border: #e5e7eb;
-
-      --checked: #9ca3af;
-
-      --radius: 12px;
-
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-
-      margin: 0;
-
-      background: var(--bg);
-
-      color: var(--ink);
-
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Hiragino Kaku Gothic ProN", "Hiragino Sans", Meiryo, sans-serif;
-
-      line-height: 1.4;
-
-      font-size: 14px;
-
-    }
-
-    header {
-
-      background: var(--card);
-
-      border-bottom: 1px solid var(--border);
-
-      padding: 4px 8px;
-
-      position: sticky;
-
-      top: 0;
-
-      z-index: 10;
-
-    }
-
-    h1 { font-size: 20px; }
-
-    .controls button { margin: 0 4px; padding: 4px 8px; font-size: 12px; }
-
-
-
-    main { padding: 8px; }
-
-    .cards { display: grid; gap: 8px; grid-template-columns: repeat(12, 1fr); }
-
-
-
-    .card, .weekday {
-
-      background: var(--card);
-
-      border: 1px solid var(--border);
-
-      border-radius: var(--radius);
-
-      padding: 6px;
-
-    }
-
-    .card h2, .weekday h3 { font-size: 14px; margin-bottom: 4px; color: var(--muted); }
-
-
-
-    #month { grid-column: span 6; }
-
-    #week { grid-column: span 6; }
-
-    .week-grid { display: grid; gap: 8px; grid-template-columns: repeat(7, 1fr); grid-column: 1/-1; }
-
-
-
-    .item { display: flex; align-items: center; gap: 4px; margin-bottom: 2px; }
-
-    .item input[type="checkbox"] { width: 14px; height: 14px; }
-
-    .item input.text {
-
-      flex: 1;
-
-      border: none;
-
-      background: transparent;
-
-      padding: 2px 4px;
-
-      font-size: 13px;
-
-    }
-
-    .item.checked input.text { text-decoration: line-through; color: var(--checked); }
-
-
-
-    @media (max-width: 1180px) {
-
-      #month, #week { grid-column: span 12; }
-
-      .week-grid { grid-template-columns: repeat(7, minmax(160px, 1fr)); overflow-x: auto; }
-
-      .weekday { min-width: 180px; }
-
-    }
-
-  </style>
-
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>ToDoリスト</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    /* --- デザインとカラー設定 --- */
+    :root {
+      --bg: #f4f5f7; /* 背景を少し柔らかい色に */
+      --card: #ffffff;
+      --ink: #172b4d; /* 文字色を濃いネイビーに */
+      --muted: #6b778c;
+      --accent: #0052cc; /* アクセントカラーを落ち着いた青に */
+      --border: #dfe1e6;
+      --checked: #9ca3af;
+      --radius: 8px; /* 角丸を少し控えめに */
+      --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.12); /* カードに影を追加 */
+    }
+
+    /* --- 基本設定 --- */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      /* フォントをNoto Sans JP（ゴシック系）に変更 */
+      font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.5;
+      font-size: 16px; /* 全体の文字サイズを少し大きく */
+    }
+
+    /* --- ヘッダー --- */
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    h1 { font-size: 22px; font-weight: 700; }
+    .controls button, .controls label {
+      border: 1px solid var(--border);
+      background-color: var(--card);
+      color: var(--ink);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .controls button:hover, .controls label:hover {
+      background-color: #f4f5f7;
+    }
+
+    /* --- メインコンテンツ --- */
+    main { padding: 16px; }
+    .cards {
+      display: grid;
+      gap: 16px; /* カード間の余白を広げる */
+      grid-template-columns: repeat(12, 1fr);
+    }
+
+    .card, .weekday {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px; /* カード内の余白を広げる */
+      box-shadow: var(--shadow); /* 影を追加 */
+    }
+    .card h2, .weekday h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    /* 月と週のカードを並べる設定 */
+    #month { grid-column: span 6; }
+    #week { grid-column: span 6; }
+    .week-grid { display: grid; gap: 16px; grid-template-columns: repeat(7, 1fr); grid-column: 1/-1; }
+
+    /* --- ToDoアイテム（入力欄） --- */
+    .item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+    .item input[type="checkbox"] { width: 18px; height: 18px; flex-shrink: 0; }
+    .item input.text {
+      flex: 1;
+      border: none;
+      border-bottom: 1px solid var(--border); /* 下線を追加 */
+      background: transparent;
+      padding: 8px 4px; /* 入力欄を縦に大きく */
+      font-size: 15px; /* 入力文字を大きく */
+      font-family: inherit; /* bodyのフォントを引き継ぐ */
+      transition: border-color 0.2s;
+    }
+    .item input.text:focus {
+      outline: none;
+      border-bottom-color: var(--accent); /* フォーカス時に下線の色を変更 */
+    }
+    .item.checked input.text { text-decoration: line-through; color: var(--checked); }
+
+    /* --- iPad/タブレット向けレイアウト調整 --- */
+    /* 画面幅が1024px以下になったら縦並びにする */
+    @media (max-width: 1024px) {
+      #month, #week { grid-column: span 12; }
+      .week-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      }
+    }
+  </style>
 </head>
-
 <body>
-
-  <header>
-
-    <h1>ToDoリスト</h1>
-
-    <div class="controls">
-
-      <button id="clearChecks">全チェック解除</button>
-
-      <button id="resetAll">すべてリセット</button>
-
-      <button id="exportData">バックアップ書き出し</button>
-
-      <label for="importDataInput">読み込み<input id="importDataInput" type="file" accept="application/json" style="display:none"></label>
-
-    </div>
-
-  </header>
-
-
-
-  <main>
-
-    <section class="cards">
-
-      <div class="card" id="month">
-
-        <h2>今月やること</h2>
-
-        <div class="list" data-section="month" data-rows="10"></div>
-
-      </div>
-
-      <div class="card" id="week">
-
-        <h2>今週やること</h2>
-
-        <div class="list" data-section="week" data-rows="5"></div>
-
-      </div>
-
-      <div class="week-grid" id="weekdays"></div>
-
-    </section>
-
-  </main>
-
-
-
-  <script>
-
-    const STORAGE_KEY = 'ipad-todo';
-
-    const days = ["月曜日","火曜日","水曜日","木曜日","金曜日","土曜日","日曜日"];
-
-    const initial = {
-
-      month: Array.from({length:10},()=>({checked:false,text:""})),
-
-      week: Array.from({length:5},()=>({checked:false,text:""}))
-
-    };
-
-    days.forEach(d=>initial[d]=Array.from({length:10},()=>({checked:false,text:""})));
-
-    let state = JSON.parse(localStorage.getItem(STORAGE_KEY)||JSON.stringify(initial));
-
-
-
-    function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-
-    function createItem(section,i){
-
-      const it=state[section][i];
-
-      const div=document.createElement('div');
-
-      div.className='item'+(it.checked?' checked':'');
-
-      const cb=document.createElement('input');cb.type='checkbox';cb.checked=it.checked;
-
-      const input=document.createElement('input');input.type='text';input.className='text';input.value=it.text;
-
-      cb.onchange=()=>{it.checked=cb.checked;div.classList.toggle('checked',cb.checked);save();};
-
-      input.oninput=()=>{it.text=input.value;save();};
-
-      div.append(cb,input);return div;
-
-    }
-
-    function render(){
-
-      document.querySelectorAll('.list').forEach(list=>{
-
-        const sec=list.dataset.section;
-
-        list.innerHTML='';
-
-        state[sec].forEach((_,i)=>list.append(createItem(sec,i)));
-
-      });
-
-      const wd=document.getElementById('weekdays');wd.innerHTML='';
-
-      days.forEach(d=>{
-
-        const card=document.createElement('div');card.className='weekday';
-
-        const h=document.createElement('h3');h.textContent=d;card.append(h);
-
-        state[d].forEach((_,i)=>card.append(createItem(d,i)));
-
-        wd.append(card);
-
-      });
-
-    }
-
-    document.getElementById('clearChecks').onclick=()=>{Object.keys(state).forEach(k=>state[k].forEach(i=>i.checked=false));save();render();};
-
-    document.getElementById('resetAll').onclick=()=>{if(confirm('リセットしますか？')){state=JSON.parse(JSON.stringify(initial));save();render();}};
-
-    document.getElementById('exportData').onclick=()=>{const b=new Blob([JSON.stringify(state)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='todo.json';a.click();};
-
-    document.getElementById('importDataInput').onchange=e=>{const f=e.target.files[0];if(f){const r=new FileReader();r.onload=()=>{try{state=JSON.parse(r.result);save();render();}catch{alert('失敗');}};r.readAsText(f);}};
-
-    render();
-
-  </script>
-
+  <header>
+    <h1>ToDoリスト</h1>
+    <div class="controls">
+      <button id="clearChecks">全チェック解除</button>
+      <button id="resetAll">すべてリセット</button>
+      <button id="exportData">バックアップ</button>
+      <label for="importDataInput">読み込み</label>
+      <input id="importDataInput" type="file" accept="application/json" style="display:none">
+    </div>
+  </header>
+
+  <main>
+    <section class="cards">
+      <div class="card" id="month">
+        <h2>今月やること</h2>
+        <div class="list" data-section="month" data-rows="10"></div>
+      </div>
+      <div class="card" id="week">
+        <h2>今週やること</h2>
+        <div class="list" data-section="week" data-rows="5"></div>
+      </div>
+      <div class="week-grid" id="weekdays"></div>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'ipad-todo';
+    const days = ["月曜日","火曜日","水曜日","木曜日","金曜日","土曜日","日曜日"];
+    const initial = {
+      month: Array.from({length:10},()=>({checked:false,text:""})),
+      week: Array.from({length:5},()=>({checked:false,text:""}))
+    };
+    days.forEach(d=>initial[d]=Array.from({length:10},()=>({checked:false,text:""})));
+    let state = JSON.parse(localStorage.getItem(STORAGE_KEY)||JSON.stringify(initial));
+
+    function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    function createItem(section,i){
+      const it=state[section][i];
+      const div=document.createElement('div');
+      div.className='item'+(it.checked?' checked':'');
+      const cb=document.createElement('input');cb.type='checkbox';cb.checked=it.checked;
+      const input=document.createElement('input');input.type='text';input.className='text';input.value=it.text;
+      cb.onchange=()=>{it.checked=cb.checked;div.classList.toggle('checked',cb.checked);save();};
+      input.oninput=()=>{it.text=input.value;save();};
+      div.append(cb,input);return div;
+    }
+    function render(){
+      document.querySelectorAll('.list').forEach(list=>{
+        const sec=list.dataset.section;
+        list.innerHTML='';
+        state[sec].forEach((_,i)=>list.append(createItem(sec,i)));
+      });
+      const wd=document.getElementById('weekdays');wd.innerHTML='';
+      days.forEach(d=>{
+        const card=document.createElement('div');card.className='weekday';
+        const h=document.createElement('h3');h.textContent=d;card.append(h);
+        state[d].forEach((_,i)=>card.append(createItem(d,i)));
+        wd.append(card);
+      });
+    }
+    document.getElementById('clearChecks').onclick=()=>{Object.keys(state).forEach(k=>state[k].forEach(i=>i.checked=false));save();render();};
+    document.getElementById('resetAll').onclick=()=>{if(confirm('リセットしますか？')){state=JSON.parse(JSON.stringify(initial));save();render();}};
+    document.getElementById('exportData').onclick=()=>{const b=new Blob([JSON.stringify(state)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='todo.json';a.click();};
+    document.getElementById('importDataInput').onchange=e=>{const f=e.target.files[0];if(f){const r=new FileReader();r.onload=()=>{try{state=JSON.parse(r.result);save();render();}catch{alert('失敗');}};r.readAsText(f);}};
+    render();
+  </script>
 </body>
-
 </html>
