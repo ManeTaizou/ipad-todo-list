@@ -8,12 +8,13 @@
     :root{
       --bg:#f4f5f7; --card:#fff; --ink:#172b4d; --muted:#6b778c;
       --accent:#0052cc; --border:#dfe1e6; --checked:#9ca3af; --radius:8px;
-      --gap:6px;                 /* 画面に収めるための最小ギャップ */
-      --pad-card:10px;           /* カード内余白を最小化 */
-      --row-top:0.38fr;          /* 上段(今月/今週)の高さ比 */
-      --row-bottom:0.62fr;       /* 下段(曜日)の高さ比 */
-      --input-h:26px;            /* 1行の高さ（チェック+テキスト） */
-      --head-h:24px;             /* カード見出し行の高さ */
+      --gap:6px;                 /* 行間・カード間ギャップ（最小） */
+      --pad-card:10px;           /* カード内余白（最小） */
+      --input-h:26px;            /* 1行の高さ */
+      --head-h:24px;             /* 見出し行の高さ */
+      --head-gap:6px;            /* 見出しとリストの間隔 */
+      --row-gap:6px;             /* 上段と下段の間のギャップ（= --gap と同じ） */
+      --list-gap:2px;            /* リスト内の行間 */
     }
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{height:100%}
@@ -23,7 +24,7 @@
       font-size:14px; line-height:1.2; -webkit-text-size-adjust:100%;
     }
 
-    /* 上部固定ヘッダー（最小サイズ） */
+    /* ヘッダー（最小） */
     header{
       background:var(--card); border-bottom:1px solid var(--border);
       position:sticky; top:0; z-index:10;
@@ -37,13 +38,13 @@
       padding:2px 8px; border-radius:6px; font-size:12px; cursor:pointer; height:26px;
     }
 
-    /* 画面全体レイアウト：ヘッダーの下を2行グリッドで完全フィット */
+    /* 画面全体レイアウト：上下2行（高さはJSでピクセル配分） */
     .canvas{
-      height:calc(100vh - 40px); /* ヘッダー高と一致 */
+      height:calc(100vh - 40px); /* 40px = header 高さ */
       padding:6px;
       display:grid;
-      grid-template-rows: var(--row-top) var(--row-bottom);
-      gap:var(--gap);
+      grid-template-rows: 1fr 1fr; /* 初期は仮。後でJSで上書き */
+      gap:var(--row-gap);
     }
 
     /* 上段：今月/今週 2カラム */
@@ -51,10 +52,10 @@
       display:grid;
       grid-template-columns:1fr 1fr;
       gap:var(--gap);
-      min-height:0; /* 子のoverflow可 */
+      min-height:0;
     }
 
-    /* 下段：曜日 7カラム（iPad横でちょうど収まる） */
+    /* 下段：曜日 7カラム */
     .weekgrid{
       display:grid;
       grid-template-columns:repeat(7,1fr);
@@ -65,45 +66,38 @@
     .card{
       background:var(--card); border:1px solid var(--border);
       border-radius:var(--radius); padding:var(--pad-card);
-      display:flex; flex-direction:column; min-height:0;
+      display:flex; flex-direction:column; min-height:0; overflow:hidden;
     }
     .card h2,.card h3{
       color:var(--muted); font-weight:600; line-height:1;
-      margin:0 0 6px 0; height:var(--head-h); display:flex; align-items:center;
+      margin:0 0 var(--head-gap) 0;
+      height:var(--head-h); display:flex; align-items:center;
     }
     .card h2{font-size:13px}
     .card h3{font-size:12px}
 
-    /* リスト領域：見出しを除いた残り高さに10行をタイトに描画 */
+    /* リストは10行固定・行間最小。万一はみ出す端末ではカード内のみスクロール。 */
     .list{
       flex:1 1 auto; min-height:0;
-      display:flex; flex-direction:column; gap:2px; /* 行間ほぼゼロ */
+      display:flex; flex-direction:column; gap:var(--list-gap);
+      overflow:auto;
     }
-
     .item{
       display:flex; align-items:center; gap:6px;
-      height:var(--input-h); /* 行高固定で10行ピッタリ狙い */
+      height:var(--input-h);
+      flex:0 0 auto;
     }
-    .item input[type="checkbox"]{
-      width:16px; height:16px; flex:0 0 auto;
-      margin:0;
-    }
+    .item input[type="checkbox"]{ width:16px; height:16px; margin:0; flex:0 0 auto; }
     .item input.text{
       width:100%; border:none; border-bottom:1px solid var(--border);
-      background:transparent; padding:2px 2px; font-size:14px; font-family:inherit;
-      height:100%;
+      background:transparent; padding:2px 2px; font-size:14px; font-family:inherit; height:100%;
     }
     .item.checked input.text{ text-decoration:line-through; color:var(--checked); }
 
-    /* 余白を極力削るための微調整 */
     @media (orientation:landscape) and (min-width:1024px){
-      :root{ --gap:6px; --pad-card:10px; --input-h:26px; --head-h:24px; }
+      :root{ --gap:6px; --pad-card:10px; --input-h:26px; --head-h:24px; --head-gap:6px; --list-gap:2px; }
       body{ font-size:14px }
     }
-
-    /* 万一高さが溢れる端末での保険：カード内のみスクロール */
-    .card{ overflow:hidden }
-    .list{ overflow:auto }
   </style>
 </head>
 <body>
@@ -118,9 +112,9 @@
     </div>
   </header>
 
-  <div class="canvas">
+  <div class="canvas" id="canvasRoot">
     <!-- 上段：今月 / 今週 -->
-    <div class="top">
+    <div class="top" id="topRow">
       <div class="card" id="month">
         <h2>今月やること</h2>
         <div class="list" data-section="month"></div>
@@ -132,7 +126,7 @@
     </div>
 
     <!-- 下段：曜日 7カラム -->
-    <div class="weekgrid">
+    <div class="weekgrid" id="bottomRow">
       <div class="card"><h3>月曜日</h3><div class="list" data-section="月曜日"></div></div>
       <div class="card"><h3>火曜日</h3><div class="list" data-section="火曜日"></div></div>
       <div class="card"><h3>水曜日</h3><div class="list" data-section="水曜日"></div></div>
@@ -147,14 +141,13 @@
     const STORAGE_KEY = 'ipad-todo';
     const days = ["月曜日","火曜日","水曜日","木曜日","金曜日","土曜日","日曜日"];
 
-    // ★ 今月=10行、今週=10行、各曜日=10行
+    // 今月=10行、今週=10行、各曜日=10行
     const initial = {
       month: Array.from({length:10}, ()=>({checked:false,text:""})),
       week:  Array.from({length:10}, ()=>({checked:false,text:""}))
     };
     days.forEach(d => initial[d] = Array.from({length:10}, ()=>({checked:false,text:""})));
 
-    // 既存保存データが5行のままでも10行に拡張されるようにマージする
     function normalizeToTen(arr){
       const copy = Array.isArray(arr) ? arr.slice(0,10) : [];
       while(copy.length < 10){ copy.push({checked:false, text:""}); }
@@ -166,10 +159,8 @@
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
       if(saved){
         state = {};
-        // month/week
         state.month = normalizeToTen(saved.month);
         state.week  = normalizeToTen(saved.week);
-        // weekdays
         days.forEach(d => { state[d] = normalizeToTen(saved[d]); });
       }else{
         state = JSON.parse(JSON.stringify(initial));
@@ -197,10 +188,66 @@
         const sec = list.dataset.section;
         list.innerHTML = '';
         if(state[sec]){
-          // 10行固定で描画
           for(let i=0;i<10;i++){ list.append(createItem(sec,i)); }
         }
       });
+      // レンダー後にレイアウト再計算
+      requestAnimationFrame(reflowRows);
+    }
+
+    // ★ 上段/下段の高さを「必要量」に合わせてピクセル配分する
+    function reflowRows(){
+      const canvas = document.getElementById('canvasRoot');
+      const topRow = document.getElementById('topRow');
+      const bottomRow = document.getElementById('bottomRow');
+
+      const rs = getComputedStyle(document.documentElement);
+      const pad = parseFloat(rs.getPropertyValue('--pad-card')) || 10;
+      const headH = parseFloat(rs.getPropertyValue('--head-h')) || 24;
+      const headGap = parseFloat(rs.getPropertyValue('--head-gap')) || 6;
+      const inputH = parseFloat(rs.getPropertyValue('--input-h')) || 26;
+      const listGap = parseFloat(rs.getPropertyValue('--list-gap')) || 2;
+      const rowGap = parseFloat(rs.getPropertyValue('--row-gap')) || 6;
+
+      // カード境界線（上下）
+      const borderSum = 2;
+
+      // 10行カードの必要高さ（見出し+見出し下の余白+行×10+行間×9+パディング×2+枠線）
+      const needCard = pad*2 + borderSum + headH + headGap + (inputH*10) + (listGap*9);
+
+      // 上段は「今月」と「今週」のうち背が高い方を採用
+      const topNeed = Math.max(needCard, needCard);
+
+      // 下段も曜日カードの必要高さ（同じ）
+      const bottomNeed = needCard;
+
+      // キャンバスの総高さ
+      const canvasH = canvas.clientHeight;
+
+      // 上下を必要高さベースで配分。ただし合計が溢れる場合は比率で縮める
+      let available = canvasH - rowGap; // 上段と下段の間のギャップを引く
+      let topH = topNeed;
+      let bottomH = bottomNeed;
+
+      const sumNeed = topNeed + bottomNeed;
+      if(sumNeed > available){
+        // はみ出す場合は必要量に比例させて圧縮
+        const ratio = available / sumNeed;
+        topH = Math.floor(topNeed * ratio);
+        bottomH = Math.floor(available - topH);
+      }else{
+        // 余りがあるなら、上段が欠けないよう上に優先配分（今回の課題に対応）
+        const extra = available - sumNeed;
+        topH = topNeed + Math.ceil(extra * 0.7); // 上に7割寄せ
+        bottomH = bottomNeed + Math.floor(extra * 0.3);
+      }
+
+      // 0未満防止
+      topH = Math.max(0, topH);
+      bottomH = Math.max(0, bottomH);
+
+      // グリッド行の高さをピクセルで指定
+      canvas.style.gridTemplateRows = `${topH}px ${bottomH}px`;
     }
 
     // 操作系
@@ -225,7 +272,6 @@
         r.onload=()=>{
           try{
             const incoming = JSON.parse(r.result);
-            // 読み込み時も10行に正規化
             const next = {};
             next.month = normalizeToTen(incoming.month);
             next.week  = normalizeToTen(incoming.week);
@@ -236,6 +282,10 @@
         r.readAsText(f);
       }
     };
+
+    // 端末回転・サイズ変更でも再計算
+    window.addEventListener('resize', ()=>requestAnimationFrame(reflowRows));
+    window.addEventListener('orientationchange', ()=>requestAnimationFrame(reflowRows));
 
     render();
   </script>
