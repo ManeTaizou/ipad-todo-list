@@ -8,6 +8,7 @@
     :root{
       --bg:#f4f5f7; --card:#fff; --ink:#172b4d; --muted:#6b778c;
       --border:#dfe1e6; --checked:#9ca3af; --radius:8px;
+      --accent:#0052cc;
       --gap:6px; --pad-card:10px; --input-h:26px; --head-h:24px;
       --head-gap:6px; --row-gap:6px; --list-gap:2px; --header-h:40px;
     }
@@ -31,10 +32,9 @@
       padding:2px 8px; border-radius:6px; font-size:12px; cursor:pointer; height:26px;
     }
 
-    /* dvh優先（SafariのUIバー変動を回避） */
     .canvas{
-      height:calc(100vh - var(--header-h));   /* fallback */
-      height:calc(100dvh - var(--header-h));  /* modern iPadOS/Safari */
+      height:calc(100vh - var(--header-h));
+      height:calc(100dvh - var(--header-h));
       padding:6px 6px calc(6px + env(safe-area-inset-bottom)) 6px;
       display:grid; grid-template-rows:1fr 1fr; gap:var(--row-gap);
       -webkit-overflow-scrolling:touch;
@@ -54,7 +54,6 @@
     .card h2{font-size:13px}
     .card h3{font-size:12px}
 
-    /* 上段カード内 2列レイアウト */
     .cols{
       flex:1 1 auto; min-height:0;
       display:grid; grid-template-columns:1fr 1fr; gap:var(--gap);
@@ -70,10 +69,16 @@
     .item input.text{
       width:100%; border:none; border-bottom:1px solid var(--border);
       background:transparent; padding:2px 2px; font-size:14px; font-family:inherit; height:100%;
+      outline:none; box-shadow:none;
+    }
+    /* 入力中は下線だけ強調（青枠は消す） */
+    .item input.text:focus{
+      border-bottom:2px solid var(--accent);
+      outline:none;
+      box-shadow:none;
     }
     .item.checked input.text{ text-decoration:line-through; color:var(--checked); }
 
-    /* “最終手段”としてだけ使う：下段の最終行の下線を消して数px稼ぐ */
     .micro-tweak .list .item:last-child input.text{ border-bottom:none; }
 
     @media (orientation:landscape) and (min-width:1024px){
@@ -95,22 +100,14 @@
   </header>
 
   <div class="canvas" id="canvasRoot">
-    <!-- 上段：左＝今月(10×2) ／ 右＝来週・今週(10×2 各列に見出し) -->
     <div class="top" id="topRow">
-      <!-- 今月：共通見出し＋2列 -->
       <div class="card" id="month">
         <h2>今月やること</h2>
         <div class="cols">
-          <div class="col">
-            <div class="list" data-section="month1"></div>
-          </div>
-          <div class="col">
-            <div class="list" data-section="month2"></div>
-          </div>
+          <div class="col"><div class="list" data-section="month1"></div></div>
+          <div class="col"><div class="list" data-section="month2"></div></div>
         </div>
       </div>
-
-      <!-- 週：列ごとに見出し（左=来週／右=今週） -->
       <div class="card" id="week">
         <div class="cols">
           <div class="col">
@@ -124,8 +121,6 @@
         </div>
       </div>
     </div>
-
-    <!-- 下段：曜日 7カラム -->
     <div class="weekgrid" id="bottomRow">
       <div class="card"><h3>月曜日</h3><div class="list" data-section="月曜日"></div></div>
       <div class="card"><h3>火曜日</h3><div class="list" data-section="火曜日"></div></div>
@@ -141,7 +136,6 @@
     const STORAGE_KEY='ipad-todo';
     const days=["月曜日","火曜日","水曜日","木曜日","金曜日","土曜日","日曜日"];
 
-    // 新構成：month1/month2、weekThis/weekNext、各曜日=10行
     const initial={
       month1:Array.from({length:10},()=>({checked:false,text:""})),
       month2:Array.from({length:10},()=>({checked:false,text:""})),
@@ -155,8 +149,6 @@
       while(c.length<10) c.push({checked:false,text:""});
       return c;
     }
-
-    // 旧データ移行：month→month1、week→weekThis
     function migrate(saved){
       const out={};
       out.month1 = saved.month1 ? normalizeToTen(saved.month1)
@@ -198,21 +190,16 @@
       requestAnimationFrame(reflowRows);
     }
 
-    // 代表列の必要高さを実測
     function neededCardHeight(card){
       const cs=getComputedStyle(card);
       const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
       const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
-
-      // カード直下の見出し（h2/h3）があれば加算
       let headH = 0;
       const directHead = Array.from(card.children).find(el => el.tagName==='H2' || el.tagName==='H3');
       if(directHead){
         const dhcs=getComputedStyle(directHead);
         headH = directHead.getBoundingClientRect().height + parseFloat(dhcs.marginBottom);
       }
-
-      // 代表コラム（最初の .col）
       const col = card.querySelector('.col') || card;
       let colHeadH = 0;
       const colHead = col.querySelector('.colhead');
@@ -220,19 +207,15 @@
         const chcs=getComputedStyle(colHead);
         colHeadH = colHead.getBoundingClientRect().height + parseFloat(chcs.marginBottom);
       }
-
-      // リスト（代表1本）
       const list = card.querySelector('.list');
       const lcs = getComputedStyle(list);
       const gap = parseFloat(lcs.rowGap)||parseFloat(lcs.gap)||0;
       const firstItem=list.querySelector('.item');
       const itemH = firstItem ? firstItem.getBoundingClientRect().height : 26;
       const listNeed = (itemH*10) + (gap*9);
-
       return Math.ceil(pad + border + headH + colHeadH + listNeed);
     }
 
-    // 上段=必要分ピッタリ / 下段=残り全部。下段が足りない時だけ段階的に詰める
     function reflowRows(){
       const rootStyle=getComputedStyle(document.documentElement);
       const baseInputH=parseFloat(rootStyle.getPropertyValue('--input-h'))||26;
@@ -241,8 +224,6 @@
       const canvas=document.getElementById('canvasRoot');
       const topRow=document.getElementById('topRow');
       const bottomRow=document.getElementById('bottomRow');
-
-      // 下段の微調整を一旦リセット
       bottomRow.classList.remove('micro-tweak');
       bottomRow.style.removeProperty('--input-h');
       bottomRow.style.removeProperty('--list-gap');
@@ -250,44 +231,35 @@
       const canvasStyle=getComputedStyle(canvas);
       const padBlock = parseFloat(canvasStyle.paddingTop) + parseFloat(canvasStyle.paddingBottom);
       const rowGap = parseFloat(canvasStyle.rowGap) || 0;
-      const available = canvas.clientHeight - padBlock - rowGap; // トラック領域の高さ
+      const available = canvas.clientHeight - padBlock - rowGap;
 
-      // 必要高さの算出
       const topNeed = Math.max(...Array.from(topRow.querySelectorAll('.card'), neededCardHeight));
       const bottomNeed0 = neededCardHeight(bottomRow.querySelector('.card'));
 
-      // まず素直に配分
       let topH = Math.ceil(topNeed);
       let bottomH = Math.max(0, available - topH);
 
-      // 下段が足りなければ「行間 → 行高 → 下線カット」の順で最小限だけ詰める
       let bottomNeed = bottomNeed0;
       let deficit = bottomNeed - bottomH;
 
-      // ① 行間を詰める（9箇所で均等、小数px対応）
       if (deficit > 0) {
         const reduceGap = Math.min(baseListGap, deficit/9);
         bottomRow.style.setProperty('--list-gap', `${Math.max(0, baseListGap - reduceGap)}px`);
         bottomNeed = neededCardHeight(bottomRow.querySelector('.card'));
         deficit = bottomNeed - bottomH;
       }
-
-      // ② 1行高を微縮（最大2pxまで、10行で均等）
       if (deficit > 0) {
         const reducePerRow = Math.min(2.0, deficit/10);
         bottomRow.style.setProperty('--input-h', `${Math.max(22, baseInputH - reducePerRow)}px`);
         bottomNeed = neededCardHeight(bottomRow.querySelector('.card'));
         deficit = bottomNeed - bottomH;
       }
-
-      // ③ それでも >1px 足りないときだけ、最終行の下線を外す（最終手段）
       if (deficit > 1.0) {
         bottomRow.classList.add('micro-tweak');
         bottomNeed = neededCardHeight(bottomRow.querySelector('.card'));
         deficit = bottomNeed - bottomH;
       }
 
-      // 仕上げ：可能なら下段に余りをすべて渡し、はみ出すなら上段を最大2pxだけ譲る
       const finalBottom = Math.max(bottomH, bottomNeed);
       const total = topH + finalBottom;
       if (total <= available){
@@ -298,7 +270,6 @@
       }
     }
 
-    // 操作系
     document.getElementById('clearChecks').onclick=()=>{
       Object.keys(state).forEach(k=>state[k].forEach(i=>i.checked=false));
       save(); render();
@@ -324,7 +295,6 @@
       r.readAsText(f);
     };
 
-    // 初期描画＋回転/サイズ/フォント読み込み後に再計測
     render();
     if (document.fonts && document.fonts.ready) { document.fonts.ready.then(()=>requestAnimationFrame(reflowRows)); }
     addEventListener('resize', ()=>requestAnimationFrame(reflowRows));
