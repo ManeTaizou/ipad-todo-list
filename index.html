@@ -33,8 +33,8 @@
 
     /* dvh優先（SafariのUIバー変動を回避） */
     .canvas{
-      height:calc(100vh - var(--header-h));   /* fallback */
-      height:calc(100dvh - var(--header-h));  /* modern iPadOS/Safari */
+      height:calc(100vh - var(--header-h));
+      height:calc(100dvh - var(--header-h));
       padding:6px 6px calc(6px + env(safe-area-inset-bottom)) 6px;
       display:grid; grid-template-rows:1fr 1fr; gap:var(--row-gap);
       -webkit-overflow-scrolling:touch;
@@ -54,6 +54,14 @@
     .card h2{font-size:13px}
     .card h3{font-size:12px}
 
+    /* 2列レイアウト（上段カード内） */
+    .cols{
+      flex:1 1 auto; min-height:0;
+      display:grid; grid-template-columns:1fr 1fr; gap:var(--gap);
+    }
+    .col{ display:flex; flex-direction:column; min-height:0; }
+    .col .colhead{ margin:0 0 var(--head-gap) 0; height:var(--head-h); display:flex; align-items:center; }
+
     .list{
       flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:var(--list-gap); overflow:auto;
     }
@@ -65,7 +73,7 @@
     }
     .item.checked input.text{ text-decoration:line-through; color:var(--checked); }
 
-    /* ★ 微調整用：下段だけ最終行の下線を消す */
+    /* 下段だけ最終行の下線を消して数px確保（微調整） */
     .micro-tweak .list .item:last-child input.text{ border-bottom:none; }
 
     @media (orientation:landscape) and (min-width:1024px){
@@ -87,10 +95,37 @@
   </header>
 
   <div class="canvas" id="canvasRoot">
+    <!-- 上段：左＝今月 2列、右＝来週/今週 2列 -->
     <div class="top" id="topRow">
-      <div class="card" id="month"><h2>今月やること</h2><div class="list" data-section="month"></div></div>
-      <div class="card" id="week"><h2>今週やること</h2><div class="list" data-section="week"></div></div>
+      <!-- 今月：共通見出し + 2列 -->
+      <div class="card" id="month">
+        <h2>今月やること</h2>
+        <div class="cols">
+          <div class="col">
+            <div class="list" data-section="month1"></div>
+          </div>
+          <div class="col">
+            <div class="list" data-section="month2"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 週：列ごとに見出し（左=来週／右=今週） -->
+      <div class="card" id="week">
+        <div class="cols">
+          <div class="col">
+            <h3 class="colhead">来週やること</h3>
+            <div class="list" data-section="weekNext"></div>
+          </div>
+          <div class="col">
+            <h3 class="colhead">今週やること</h3>
+            <div class="list" data-section="weekThis"></div>
+          </div>
+        </div>
+      </div>
     </div>
+
+    <!-- 下段：曜日 7カラム -->
     <div class="weekgrid" id="bottomRow">
       <div class="card"><h3>月曜日</h3><div class="list" data-section="月曜日"></div></div>
       <div class="card"><h3>火曜日</h3><div class="list" data-section="火曜日"></div></div>
@@ -105,52 +140,96 @@
   <script>
     const STORAGE_KEY='ipad-todo';
     const days=["月曜日","火曜日","水曜日","木曜日","金曜日","土曜日","日曜日"];
-    const initial={ month:Array.from({length:10},()=>({checked:false,text:""})),
-                    week:Array.from({length:10},()=>({checked:false,text:""})) };
+
+    // 新構成：month1/month2、weekThis/weekNext、各曜日=10行
+    const initial={
+      month1:Array.from({length:10},()=>({checked:false,text:""})),
+      month2:Array.from({length:10},()=>({checked:false,text:""})),
+      weekThis:Array.from({length:10},()=>({checked:false,text:""})),
+      weekNext:Array.from({length:10},()=>({checked:false,text:""})),
+    };
     days.forEach(d=>initial[d]=Array.from({length:10},()=>({checked:false,text:""})));
 
-    function normalizeToTen(arr){ const c=Array.isArray(arr)?arr.slice(0,10):[]; while(c.length<10)c.push({checked:false,text:""}); return c; }
-    let state; try{ const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
-      state=saved?{
-        month:normalizeToTen(saved.month), week:normalizeToTen(saved.week),
-        ...Object.fromEntries(days.map(d=>[d,normalizeToTen(saved[d])]))
-      }:JSON.parse(JSON.stringify(initial));
+    function normalizeToTen(arr){
+      const c=Array.isArray(arr)?arr.slice(0,10):[];
+      while(c.length<10) c.push({checked:false,text:""});
+      return c;
+    }
+
+    // 旧データ移行：month→month1、week→weekThis
+    function migrate(saved){
+      const out={};
+      out.month1 = saved.month1 ? normalizeToTen(saved.month1)
+                : saved.month  ? normalizeToTen(saved.month) : normalizeToTen([]);
+      out.month2 = saved.month2 ? normalizeToTen(saved.month2) : normalizeToTen([]);
+      out.weekThis = saved.weekThis ? normalizeToTen(saved.weekThis)
+                 : saved.week    ? normalizeToTen(saved.week) : normalizeToTen([]);
+      out.weekNext = saved.weekNext ? normalizeToTen(saved.weekNext) : normalizeToTen([]);
+      days.forEach(d=>{ out[d] = saved[d] ? normalizeToTen(saved[d]) : normalizeToTen([]); });
+      return out;
+    }
+
+    let state;
+    try{
+      const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
+      state=saved?migrate(saved):JSON.parse(JSON.stringify(initial));
     }catch{ state=JSON.parse(JSON.stringify(initial)); }
+
     function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
     function createItem(section,i){
       const it=state[section][i];
-      const div=document.createElement('div'); div.className='item'+(it.checked?' checked':'');
+      const div=document.createElement('div');
+      div.className='item'+(it.checked?' checked':'');
       const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=it.checked;
       const input=document.createElement('input'); input.type='text'; input.className='text'; input.value=it.text;
       cb.onchange=()=>{it.checked=cb.checked;div.classList.toggle('checked',cb.checked);save();};
       input.oninput=()=>{it.text=input.value;save();};
-      div.append(cb,input); return div;
+      div.append(cb,input);
+      return div;
     }
 
     function render(){
       document.querySelectorAll('.list').forEach(list=>{
-        const sec=list.dataset.section; list.innerHTML='';
-        if(state[sec]){ for(let i=0;i<10;i++) list.append(createItem(sec,i)); }
+        const sec=list.dataset.section;
+        list.innerHTML='';
+        if(state[sec]) for(let i=0;i<10;i++) list.append(createItem(sec,i));
       });
       requestAnimationFrame(reflowRows);
     }
 
-    // 必要高さを実測
+    // カード必要高さ：カード直下の見出し(h2/h3) + 代表列のcolhead + 10行リストを考慮
     function neededCardHeight(card){
       const cs=getComputedStyle(card);
       const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
       const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
-      const heading = card.querySelector('h2,h3');
-      const hcs = getComputedStyle(heading);
-      const headH = heading.getBoundingClientRect().height + parseFloat(hcs.marginBottom);
+
+      // 1) カード直下の見出し（ある場合）
+      let headH = 0;
+      const directHead = Array.from(card.children).find(el => el.tagName==='H2' || el.tagName==='H3');
+      if(directHead){
+        const dhcs=getComputedStyle(directHead);
+        headH = directHead.getBoundingClientRect().height + parseFloat(dhcs.marginBottom);
+      }
+
+      // 2) 代表コラム（最初の .col）
+      const col = card.querySelector('.col') || card;
+      let colHeadH = 0;
+      const colHead = col.querySelector('.colhead');
+      if(colHead){
+        const chcs=getComputedStyle(colHead);
+        colHeadH = colHead.getBoundingClientRect().height + parseFloat(chcs.marginBottom);
+      }
+
+      // 3) リスト（代表1本）
       const list = card.querySelector('.list');
       const lcs = getComputedStyle(list);
       const gap = parseFloat(lcs.rowGap)||parseFloat(lcs.gap)||0;
       const firstItem=list.querySelector('.item');
       const itemH = firstItem ? firstItem.getBoundingClientRect().height : 26;
       const listNeed = (itemH*10) + (gap*9);
-      return Math.ceil(pad + border + headH + listNeed);
+
+      return Math.ceil(pad + border + headH + colHeadH + listNeed);
     }
 
     function reflowRows(){
@@ -162,7 +241,7 @@
       const topRow=document.getElementById('topRow');
       const bottomRow=document.getElementById('bottomRow');
 
-      // いったん下段の微調整を解除してクリーンな状態に
+      // 下段の微調整リセット
       bottomRow.classList.remove('micro-tweak');
       bottomRow.style.removeProperty('--input-h');
       bottomRow.style.removeProperty('--list-gap');
@@ -170,50 +249,45 @@
       const canvasStyle=getComputedStyle(canvas);
       const padBlock = parseFloat(canvasStyle.paddingTop) + parseFloat(canvasStyle.paddingBottom);
       const rowGap = parseFloat(canvasStyle.rowGap) || 0;
-      const available = canvas.clientHeight - padBlock - rowGap; // トラック領域
+      const available = canvas.clientHeight - padBlock - rowGap;
 
+      // 上段必要高さ＝左(今月)と右(週)の大きい方
       const topNeed = Math.max(...Array.from(topRow.querySelectorAll('.card'), neededCardHeight));
+
+      // 下段代表カード（曜日）は1枚でOK
       const bottomNeed0 = neededCardHeight(bottomRow.querySelector('.card'));
 
-      // まず素直に配分
       let topH = Math.ceil(topNeed);
       let bottomH = Math.max(0, available - topH);
 
-      // 下段が足りなければ“必要分だけ”自動で詰める
+      // 下段が足りなければ段階的に詰める
       let bottomNeed = bottomNeed0;
       let deficit = bottomNeed - bottomH;
 
       if (deficit > 0) {
-        // 1) 最終行の下線を外して +1px
         bottomRow.classList.add('micro-tweak');
         bottomNeed = neededCardHeight(bottomRow.querySelector('.card'));
         deficit = bottomNeed - bottomH;
       }
       if (deficit > 0) {
-        // 2) 行間を詰める（9箇所に均等割り）
         const reduceGap = Math.min(baseListGap, deficit/9);
-        const newGap = Math.max(0, baseListGap - reduceGap);
-        bottomRow.style.setProperty('--list-gap', `${newGap}px`);
+        bottomRow.style.setProperty('--list-gap', `${Math.max(0, baseListGap - reduceGap)}px`);
         bottomNeed = neededCardHeight(bottomRow.querySelector('.card'));
         deficit = bottomNeed - bottomH;
       }
       if (deficit > 0) {
-        // 3) 1行の高さを微減（10行で均等割り）: 最大でも1.5px程度まで
         const reducePerRow = Math.min(1.5, deficit/10);
-        const newH = Math.max(22, baseInputH - reducePerRow);
-        bottomRow.style.setProperty('--input-h', `${newH}px`);
+        bottomRow.style.setProperty('--input-h', `${Math.max(22, baseInputH - reducePerRow)}px`);
         bottomNeed = neededCardHeight(bottomRow.querySelector('.card'));
         deficit = bottomNeed - bottomH;
       }
 
-      // 最終反映：上段は固定、下段は余り全て
+      // 最終反映
       const finalBottom = Math.max(bottomH, bottomNeed);
       const total = topH + finalBottom;
-
-      if (total <= available) {
+      if (total <= available){
         canvas.style.gridTemplateRows = `${topH}px ${available - topH}px`;
-      } else {
-        // どうしてもオーバーする場合は上段を1pxだけ譲って調停（見た目は維持）
+      }else{
         const needCut = total - available;
         const shave = Math.min(1, needCut);
         canvas.style.gridTemplateRows = `${topH - shave}px ${available - (topH - shave)}px`;
@@ -224,12 +298,19 @@
     clearChecks.onclick=()=>{Object.keys(state).forEach(k=>state[k].forEach(i=>i.checked=false));save();render();};
     resetAll.onclick=()=>{if(confirm('リセットしますか？')){state=JSON.parse(JSON.stringify(initial));save();render();}};
     exportData.onclick=()=>{const b=new Blob([JSON.stringify(state)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='todo.json';a.click();};
-    importDataInput.onchange=e=>{const f=e.target.files[0];if(f){const r=new FileReader();r.onload=()=>{try{
-      const incoming=JSON.parse(r.result);
-      state={month:normalizeToTen(incoming.month),week:normalizeToTen(incoming.week)};
-      days.forEach(d=>state[d]=normalizeToTen(incoming[d])); save(); render();
-    }catch{alert('読み込みに失敗しました');}}; r.readAsText(f);}};
+    importDataInput.onchange=e=>{
+      const f=e.target.files[0]; if(!f) return;
+      const r=new FileReader();
+      r.onload=()=>{
+        try{
+          const incoming=JSON.parse(r.result);
+          state=migrate(incoming); save(); render();
+        }catch{ alert('読み込みに失敗しました'); }
+      };
+      r.readAsText(f);
+    };
 
+    // 初期描画
     render();
     if (document.fonts && document.fonts.ready) { document.fonts.ready.then(()=>requestAnimationFrame(reflowRows)); }
     addEventListener('resize', ()=>requestAnimationFrame(reflowRows));
