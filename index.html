@@ -1,126 +1,243 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ToDoリスト</title>
-    <style>
-        :root {
-            --bg: #f4f5f7; --card: #ffffff; --ink: #172b4d; --muted: #6b778c;
-            --accent: #0052cc; --border: #dfe1e6; --checked: #9ca3af; --radius: 8px;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            margin: 0; background: var(--bg); color: var(--ink);
-            font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Hiragino Sans", sans-serif;
-            font-size: 16px; line-height: 1.5;
-        }
-        .container { width: 100%; max-width: 1800px; margin: 0 auto; padding: 16px; }
-        header {
-            background: var(--card); border-bottom: 1px solid var(--border);
-            padding: 12px 16px; position: sticky; top: 0; z-index: 10;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        h1 { font-size: 22px; }
-        .controls button, .controls label {
-            border: 1px solid var(--border); background-color: var(--card); color: var(--ink);
-            padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer;
-        }
-        .main-table { width: 100%; border-spacing: 16px; border-collapse: separate; }
-        .main-table td { vertical-align: top; }
-        .card {
-            background: var(--card); border: 1px solid var(--border);
-            border-radius: var(--radius); padding: 16px; height: 100%;
-        }
-        .card h2 { font-size: 16px; margin-bottom: 12px; color: var(--muted); }
-        .week-grid-table { width: 100%; border-spacing: 16px; border-collapse: separate; table-layout: fixed; }
-        .item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-        .item input[type="checkbox"] { width: 18px; height: 18px; }
-        .item input.text {
-            width: 100%; border: none; border-bottom: 1px solid var(--border);
-            background: transparent; padding: 8px 4px; font-size: 15px; font-family: inherit;
-        }
-        .item.checked input.text { text-decoration: line-through; color: var(--checked); }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>ToDoリスト</title>
+  <style>
+    :root{
+      --bg:#f4f5f7; --card:#fff; --ink:#172b4d; --muted:#6b778c;
+      --accent:#0052cc; --border:#dfe1e6; --checked:#9ca3af; --radius:8px;
+      --gap:6px;                 /* 画面に収めるための最小ギャップ */
+      --pad-card:10px;           /* カード内余白を最小化 */
+      --row-top:0.38fr;          /* 上段(今月/今週)の高さ比 */
+      --row-bottom:0.62fr;       /* 下段(曜日)の高さ比 */
+      --input-h:26px;            /* 1行の高さ（チェック+テキスト） */
+      --head-h:24px;             /* カード見出し行の高さ */
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{height:100%}
+    body{
+      margin:0; background:var(--bg); color:var(--ink);
+      font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Sans",sans-serif;
+      font-size:14px; line-height:1.2; -webkit-text-size-adjust:100%;
+    }
+
+    /* 上部固定ヘッダー（最小サイズ） */
+    header{
+      background:var(--card); border-bottom:1px solid var(--border);
+      position:sticky; top:0; z-index:10;
+      display:flex; justify-content:space-between; align-items:center;
+      padding:6px 10px; height:40px;
+    }
+    h1{font-size:16px; font-weight:600}
+    .controls{display:flex; gap:4px; align-items:center}
+    .controls button,.controls label{
+      border:1px solid var(--border); background:var(--card); color:var(--ink);
+      padding:2px 8px; border-radius:6px; font-size:12px; cursor:pointer; height:26px;
+    }
+
+    /* 画面全体レイアウト：ヘッダーの下を2行グリッドで完全フィット */
+    .canvas{
+      height:calc(100vh - 40px); /* ヘッダー高と一致 */
+      padding:6px;
+      display:grid;
+      grid-template-rows: var(--row-top) var(--row-bottom);
+      gap:var(--gap);
+    }
+
+    /* 上段：今月/今週 2カラム */
+    .top{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:var(--gap);
+      min-height:0; /* 子のoverflow可 */
+    }
+
+    /* 下段：曜日 7カラム（iPad横でちょうど収まる） */
+    .weekgrid{
+      display:grid;
+      grid-template-columns:repeat(7,1fr);
+      gap:var(--gap);
+      min-height:0;
+    }
+
+    .card{
+      background:var(--card); border:1px solid var(--border);
+      border-radius:var(--radius); padding:var(--pad-card);
+      display:flex; flex-direction:column; min-height:0;
+    }
+    .card h2,.card h3{
+      color:var(--muted); font-weight:600; line-height:1;
+      margin:0 0 6px 0; height:var(--head-h); display:flex; align-items:center;
+    }
+    .card h2{font-size:13px}
+    .card h3{font-size:12px}
+
+    /* リスト領域：見出しを除いた残り高さに10行をタイトに描画 */
+    .list{
+      flex:1 1 auto; min-height:0;
+      display:flex; flex-direction:column; gap:2px; /* 行間ほぼゼロ */
+    }
+
+    .item{
+      display:flex; align-items:center; gap:6px;
+      height:var(--input-h); /* 行高固定で10行ピッタリ狙い */
+    }
+    .item input[type="checkbox"]{
+      width:16px; height:16px; flex:0 0 auto;
+      margin:0;
+    }
+    .item input.text{
+      width:100%; border:none; border-bottom:1px solid var(--border);
+      background:transparent; padding:2px 2px; font-size:14px; font-family:inherit;
+      height:100%;
+    }
+    .item.checked input.text{ text-decoration:line-through; color:var(--checked); }
+
+    /* 余白を極力削るための微調整 */
+    @media (orientation:landscape) and (min-width:1024px){
+      :root{ --gap:6px; --pad-card:10px; --input-h:26px; --head-h:24px; }
+      body{ font-size:14px }
+    }
+
+    /* 万一高さが溢れる端末での保険：カード内のみスクロール */
+    .card{ overflow:hidden }
+    .list{ overflow:auto }
+  </style>
 </head>
 <body>
-    <header>
-        <h1>ToDoリスト</h1>
-        <div class="controls">
-            <button id="clearChecks">全チェック解除</button>
-            <button id="resetAll">すべてリセット</button>
-            <button id="exportData">バックアップ</button>
-            <label for="importDataInput">読み込み</label>
-            <input id="importDataInput" type="file" accept="application/json" style="display:none">
-        </div>
-    </header>
+  <header>
+    <h1>ToDoリスト</h1>
+    <div class="controls">
+      <button id="clearChecks">全チェック解除</button>
+      <button id="resetAll">すべてリセット</button>
+      <button id="exportData">バックアップ</button>
+      <label for="importDataInput">読み込み</label>
+      <input id="importDataInput" type="file" accept="application/json" style="display:none">
+    </div>
+  </header>
 
-    <div class="container">
-        <table class="main-table">
-            <tr>
-                <td style="width:50%;">
-                    <div class="card" id="month">
-                        <h2>今月やること</h2>
-                        <div class="list" data-section="month"></div>
-                    </div>
-                </td>
-                <td style="width:50%;">
-                    <div class="card" id="week">
-                        <h2>今週やること</h2>
-                        <div class="list" data-section="week"></div>
-                    </div>
-                </td>
-            </tr>
-        </table>
-
-        <table class="week-grid-table">
-            <tr>
-                <td id="weekday-月曜日"><div class="card"><h3>月曜日</h3><div class="list" data-section="月曜日"></div></div></td>
-                <td id="weekday-火曜日"><div class="card"><h3>火曜日</h3><div class="list" data-section="火曜日"></div></div></td>
-                <td id="weekday-水曜日"><div class="card"><h3>水曜日</h3><div class="list" data-section="水曜日"></div></div></td>
-                <td id="weekday-木曜日"><div class="card"><h3>木曜日</h3><div class="list" data-section="木曜日"></div></div></td>
-                <td id="weekday-金曜日"><div class="card"><h3>金曜日</h3><div class="list" data-section="金曜日"></div></div></td>
-                <td id="weekday-土曜日"><div class="card"><h3>土曜日</h3><div class="list" data-section="土曜日"></div></div></td>
-                <td id="weekday-日曜日"><div class="card"><h3>日曜日</h3><div class="list" data-section="日曜日"></div></div></td>
-            </tr>
-        </table>
+  <div class="canvas">
+    <!-- 上段：今月 / 今週 -->
+    <div class="top">
+      <div class="card" id="month">
+        <h2>今月やること</h2>
+        <div class="list" data-section="month"></div>
+      </div>
+      <div class="card" id="week">
+        <h2>今週やること</h2>
+        <div class="list" data-section="week"></div>
+      </div>
     </div>
 
-    <script>
-        const STORAGE_KEY = 'ipad-todo';
-        const days = ["月曜日","火曜日","水曜日","木曜日","金曜日","土曜日","日曜日"];
-        const initial = {
-          month: Array.from({length:10},()=>({checked:false,text:""})),
-          week: Array.from({length:5},()=>({checked:false,text:""}))
-        };
-        days.forEach(d=>initial[d]=Array.from({length:10},()=>({checked:false,text:""})));
-        let state = JSON.parse(localStorage.getItem(STORAGE_KEY)||JSON.stringify(initial));
+    <!-- 下段：曜日 7カラム -->
+    <div class="weekgrid">
+      <div class="card"><h3>月曜日</h3><div class="list" data-section="月曜日"></div></div>
+      <div class="card"><h3>火曜日</h3><div class="list" data-section="火曜日"></div></div>
+      <div class="card"><h3>水曜日</h3><div class="list" data-section="水曜日"></div></div>
+      <div class="card"><h3>木曜日</h3><div class="list" data-section="木曜日"></div></div>
+      <div class="card"><h3>金曜日</h3><div class="list" data-section="金曜日"></div></div>
+      <div class="card"><h3>土曜日</h3><div class="list" data-section="土曜日"></div></div>
+      <div class="card"><h3>日曜日</h3><div class="list" data-section="日曜日"></div></div>
+    </div>
+  </div>
 
-        function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
-        function createItem(section,i){
-          const it=state[section][i];
-          const div=document.createElement('div');
-          div.className='item'+(it.checked?' checked':'');
-          const cb=document.createElement('input');cb.type='checkbox';cb.checked=it.checked;
-          const input=document.createElement('input');input.type='text';input.className='text';input.value=it.text;
-          cb.onchange=()=>{it.checked=cb.checked;div.classList.toggle('checked',cb.checked);save();};
-          input.oninput=()=>{it.text=input.value;save();};
-          div.append(cb,input);return div;
+  <script>
+    const STORAGE_KEY = 'ipad-todo';
+    const days = ["月曜日","火曜日","水曜日","木曜日","金曜日","土曜日","日曜日"];
+
+    // ★ 今月=10行、今週=10行、各曜日=10行
+    const initial = {
+      month: Array.from({length:10}, ()=>({checked:false,text:""})),
+      week:  Array.from({length:10}, ()=>({checked:false,text:""}))
+    };
+    days.forEach(d => initial[d] = Array.from({length:10}, ()=>({checked:false,text:""})));
+
+    // 既存保存データが5行のままでも10行に拡張されるようにマージする
+    function normalizeToTen(arr){
+      const copy = Array.isArray(arr) ? arr.slice(0,10) : [];
+      while(copy.length < 10){ copy.push({checked:false, text:""}); }
+      return copy;
+    }
+
+    let state;
+    try{
+      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+      if(saved){
+        state = {};
+        // month/week
+        state.month = normalizeToTen(saved.month);
+        state.week  = normalizeToTen(saved.week);
+        // weekdays
+        days.forEach(d => { state[d] = normalizeToTen(saved[d]); });
+      }else{
+        state = JSON.parse(JSON.stringify(initial));
+      }
+    }catch(e){
+      state = JSON.parse(JSON.stringify(initial));
+    }
+
+    function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+    function createItem(section,i){
+      const it = state[section][i];
+      const div = document.createElement('div');
+      div.className = 'item' + (it.checked ? ' checked' : '');
+      const cb = document.createElement('input'); cb.type='checkbox'; cb.checked=it.checked;
+      const input = document.createElement('input'); input.type='text'; input.className='text'; input.value=it.text;
+      cb.onchange = ()=>{ it.checked=cb.checked; div.classList.toggle('checked', cb.checked); save(); };
+      input.oninput = ()=>{ it.text=input.value; save(); };
+      div.append(cb, input);
+      return div;
+    }
+
+    function render(){
+      document.querySelectorAll('.list').forEach(list=>{
+        const sec = list.dataset.section;
+        list.innerHTML = '';
+        if(state[sec]){
+          // 10行固定で描画
+          for(let i=0;i<10;i++){ list.append(createItem(sec,i)); }
         }
-        function render(){
-          document.querySelectorAll('.list').forEach(list=>{
-            const sec=list.dataset.section;
-            list.innerHTML='';
-            if(state[sec]){
-              state[sec].forEach((_,i)=>list.append(createItem(sec,i)));
-            }
-          });
-        }
-        document.getElementById('clearChecks').onclick=()=>{Object.keys(state).forEach(k=>state[k].forEach(i=>i.checked=false));save();render();};
-        document.getElementById('resetAll').onclick=()=>{if(confirm('リセットしますか？')){state=JSON.parse(JSON.stringify(initial));save();render();}};
-        document.getElementById('exportData').onclick=()=>{const b=new Blob([JSON.stringify(state)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='todo.json';a.click();};
-        document.getElementById('importDataInput').onchange=e=>{const f=e.target.files[0];if(f){const r=new FileReader();r.onload=()=>{try{state=JSON.parse(r.result);save();render();}catch{alert('失敗');}};r.readAsText(f);}};
-        render();
-    </script>
+      });
+    }
+
+    // 操作系
+    document.getElementById('clearChecks').onclick = ()=>{
+      Object.keys(state).forEach(k => state[k].forEach(i => i.checked=false));
+      save(); render();
+    };
+    document.getElementById('resetAll').onclick = ()=>{
+      if(confirm('リセットしますか？')){
+        state = JSON.parse(JSON.stringify(initial)); save(); render();
+      }
+    };
+    document.getElementById('exportData').onclick = ()=>{
+      const b = new Blob([JSON.stringify(state)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b); a.download='todo.json'; a.click();
+    };
+    document.getElementById('importDataInput').onchange = e=>{
+      const f = e.target.files[0];
+      if(f){
+        const r=new FileReader();
+        r.onload=()=>{
+          try{
+            const incoming = JSON.parse(r.result);
+            // 読み込み時も10行に正規化
+            const next = {};
+            next.month = normalizeToTen(incoming.month);
+            next.week  = normalizeToTen(incoming.week);
+            days.forEach(d => next[d] = normalizeToTen(incoming[d]));
+            state = next; save(); render();
+          }catch{ alert('読み込みに失敗しました'); }
+        };
+        r.readAsText(f);
+      }
+    };
+
+    render();
+  </script>
 </body>
 </html>
