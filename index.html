@@ -7,14 +7,9 @@
   <style>
     :root{
       --bg:#f4f5f7; --card:#fff; --ink:#172b4d; --muted:#6b778c;
-      --accent:#0052cc; --border:#dfe1e6; --checked:#9ca3af; --radius:8px;
-      --gap:6px;                 /* 行間・カード間ギャップ（最小） */
-      --pad-card:10px;           /* カード内余白（最小） */
-      --input-h:26px;            /* 1行の高さ */
-      --head-h:24px;             /* 見出し行の高さ */
-      --head-gap:6px;            /* 見出しとリストの間隔 */
-      --row-gap:6px;             /* 上段と下段の間のギャップ（= --gap と同じ） */
-      --list-gap:2px;            /* リスト内の行間 */
+      --border:#dfe1e6; --checked:#9ca3af; --radius:8px;
+      --gap:6px; --pad-card:10px; --input-h:26px; --head-h:24px;
+      --head-gap:6px; --row-gap:6px; --list-gap:2px; --header-h:40px;
     }
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{height:100%}
@@ -23,70 +18,46 @@
       font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Sans",sans-serif;
       font-size:14px; line-height:1.2; -webkit-text-size-adjust:100%;
     }
-
-    /* ヘッダー（最小） */
     header{
       background:var(--card); border-bottom:1px solid var(--border);
       position:sticky; top:0; z-index:10;
       display:flex; justify-content:space-between; align-items:center;
-      padding:6px 10px; height:40px;
+      padding:6px 10px; height:var(--header-h);
     }
-    h1{font-size:16px; font-weight:600}
+    h1{font-size:16px;font-weight:600}
     .controls{display:flex; gap:4px; align-items:center}
     .controls button,.controls label{
       border:1px solid var(--border); background:var(--card); color:var(--ink);
       padding:2px 8px; border-radius:6px; font-size:12px; cursor:pointer; height:26px;
     }
 
-    /* 画面全体レイアウト：上下2行（高さはJSでピクセル配分） */
+    /* ← ここが重要：dvh優先 + vhフォールバック。safe-areaも考慮 */
     .canvas{
-      height:calc(100vh - 40px); /* 40px = header 高さ */
-      padding:6px;
-      display:grid;
-      grid-template-rows: 1fr 1fr; /* 初期は仮。後でJSで上書き */
-      gap:var(--row-gap);
+      height:calc(100vh - var(--header-h));            /* fallback */
+      height:calc(100dvh - var(--header-h));           /* modern iPadOS/Safari */
+      padding:6px 6px calc(6px + env(safe-area-inset-bottom)) 6px;
+      display:grid; grid-template-rows: 1fr 1fr; gap:var(--row-gap);
+      -webkit-overflow-scrolling:touch;
     }
 
-    /* 上段：今月/今週 2カラム */
-    .top{
-      display:grid;
-      grid-template-columns:1fr 1fr;
-      gap:var(--gap);
-      min-height:0;
-    }
-
-    /* 下段：曜日 7カラム */
-    .weekgrid{
-      display:grid;
-      grid-template-columns:repeat(7,1fr);
-      gap:var(--gap);
-      min-height:0;
-    }
+    .top{ display:grid; grid-template-columns:1fr 1fr; gap:var(--gap); min-height:0; }
+    .weekgrid{ display:grid; grid-template-columns:repeat(7,1fr); gap:var(--gap); min-height:0; }
 
     .card{
-      background:var(--card); border:1px solid var(--border);
-      border-radius:var(--radius); padding:var(--pad-card);
-      display:flex; flex-direction:column; min-height:0; overflow:hidden;
+      background:var(--card); border:1px solid var(--border); border-radius:var(--radius);
+      padding:var(--pad-card); display:flex; flex-direction:column; min-height:0; overflow:hidden;
     }
     .card h2,.card h3{
       color:var(--muted); font-weight:600; line-height:1;
-      margin:0 0 var(--head-gap) 0;
-      height:var(--head-h); display:flex; align-items:center;
+      margin:0 0 var(--head-gap) 0; height:var(--head-h); display:flex; align-items:center;
     }
     .card h2{font-size:13px}
     .card h3{font-size:12px}
 
-    /* リストは10行固定・行間最小。万一はみ出す端末ではカード内のみスクロール。 */
     .list{
-      flex:1 1 auto; min-height:0;
-      display:flex; flex-direction:column; gap:var(--list-gap);
-      overflow:auto;
+      flex:1 1 auto; min-height:0; display:flex; flex-direction:column; gap:var(--list-gap); overflow:auto;
     }
-    .item{
-      display:flex; align-items:center; gap:6px;
-      height:var(--input-h);
-      flex:0 0 auto;
-    }
+    .item{ display:flex; align-items:center; gap:6px; height:var(--input-h); flex:0 0 auto; }
     .item input[type="checkbox"]{ width:16px; height:16px; margin:0; flex:0 0 auto; }
     .item input.text{
       width:100%; border:none; border-bottom:1px solid var(--border);
@@ -113,19 +84,10 @@
   </header>
 
   <div class="canvas" id="canvasRoot">
-    <!-- 上段：今月 / 今週 -->
     <div class="top" id="topRow">
-      <div class="card" id="month">
-        <h2>今月やること</h2>
-        <div class="list" data-section="month"></div>
-      </div>
-      <div class="card" id="week">
-        <h2>今週やること</h2>
-        <div class="list" data-section="week"></div>
-      </div>
+      <div class="card" id="month"><h2>今月やること</h2><div class="list" data-section="month"></div></div>
+      <div class="card" id="week"><h2>今週やること</h2><div class="list" data-section="week"></div></div>
     </div>
-
-    <!-- 下段：曜日 7カラム -->
     <div class="weekgrid" id="bottomRow">
       <div class="card"><h3>月曜日</h3><div class="list" data-section="月曜日"></div></div>
       <div class="card"><h3>火曜日</h3><div class="list" data-section="火曜日"></div></div>
@@ -138,156 +100,110 @@
   </div>
 
   <script>
-    const STORAGE_KEY = 'ipad-todo';
-    const days = ["月曜日","火曜日","水曜日","木曜日","金曜日","土曜日","日曜日"];
+    const STORAGE_KEY='ipad-todo';
+    const days=["月曜日","火曜日","水曜日","木曜日","金曜日","土曜日","日曜日"];
+    const initial={ month:Array.from({length:10},()=>({checked:false,text:""})),
+                    week:Array.from({length:10},()=>({checked:false,text:""})) };
+    days.forEach(d=>initial[d]=Array.from({length:10},()=>({checked:false,text:""})));
 
-    // 今月=10行、今週=10行、各曜日=10行
-    const initial = {
-      month: Array.from({length:10}, ()=>({checked:false,text:""})),
-      week:  Array.from({length:10}, ()=>({checked:false,text:""}))
-    };
-    days.forEach(d => initial[d] = Array.from({length:10}, ()=>({checked:false,text:""})));
-
-    function normalizeToTen(arr){
-      const copy = Array.isArray(arr) ? arr.slice(0,10) : [];
-      while(copy.length < 10){ copy.push({checked:false, text:""}); }
-      return copy;
-    }
-
-    let state;
-    try{
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-      if(saved){
-        state = {};
-        state.month = normalizeToTen(saved.month);
-        state.week  = normalizeToTen(saved.week);
-        days.forEach(d => { state[d] = normalizeToTen(saved[d]); });
-      }else{
-        state = JSON.parse(JSON.stringify(initial));
-      }
-    }catch(e){
-      state = JSON.parse(JSON.stringify(initial));
-    }
-
+    function normalizeToTen(arr){ const c=Array.isArray(arr)?arr.slice(0,10):[]; while(c.length<10)c.push({checked:false,text:""}); return c; }
+    let state; try{ const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||"null");
+      state=saved?{
+        month:normalizeToTen(saved.month), week:normalizeToTen(saved.week),
+        ...Object.fromEntries(days.map(d=>[d,normalizeToTen(saved[d])]))
+      }:JSON.parse(JSON.stringify(initial));
+    }catch{ state=JSON.parse(JSON.stringify(initial)); }
     function save(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
     function createItem(section,i){
-      const it = state[section][i];
-      const div = document.createElement('div');
-      div.className = 'item' + (it.checked ? ' checked' : '');
-      const cb = document.createElement('input'); cb.type='checkbox'; cb.checked=it.checked;
-      const input = document.createElement('input'); input.type='text'; input.className='text'; input.value=it.text;
-      cb.onchange = ()=>{ it.checked=cb.checked; div.classList.toggle('checked', cb.checked); save(); };
-      input.oninput = ()=>{ it.text=input.value; save(); };
-      div.append(cb, input);
-      return div;
+      const it=state[section][i];
+      const div=document.createElement('div'); div.className='item'+(it.checked?' checked':'');
+      const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=it.checked;
+      const input=document.createElement('input'); input.type='text'; input.className='text'; input.value=it.text;
+      cb.onchange=()=>{it.checked=cb.checked;div.classList.toggle('checked',cb.checked);save();};
+      input.oninput=()=>{it.text=input.value;save();};
+      div.append(cb,input); return div;
     }
 
     function render(){
       document.querySelectorAll('.list').forEach(list=>{
-        const sec = list.dataset.section;
-        list.innerHTML = '';
-        if(state[sec]){
-          for(let i=0;i<10;i++){ list.append(createItem(sec,i)); }
-        }
+        const sec=list.dataset.section; list.innerHTML='';
+        if(state[sec]){ for(let i=0;i<10;i++) list.append(createItem(sec,i)); }
       });
-      // レンダー後にレイアウト再計算
       requestAnimationFrame(reflowRows);
     }
 
-    // ★ 上段/下段の高さを「必要量」に合わせてピクセル配分する
+    // ① カードの必要高さを実測して算出（見出し + リスト10行 + パディング/枠線/ギャップを含む）
+    function neededCardHeight(card){
+      const cs=getComputedStyle(card);
+      const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+      const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+
+      const heading = card.querySelector('h2,h3');
+      const hcs = getComputedStyle(heading);
+      const headH = heading.getBoundingClientRect().height + parseFloat(hcs.marginBottom);
+
+      const list = card.querySelector('.list');
+      const lcs = getComputedStyle(list);
+      const gap = parseFloat(lcs.rowGap) || 0;
+      const firstItem=list.querySelector('.item');
+      const itemH = firstItem ? firstItem.getBoundingClientRect().height : 26;
+
+      const listNeed = (itemH * 10) + (gap * 9);
+
+      return Math.ceil(pad + border + headH + listNeed);
+    }
+
+    // ② 上段=必要分ピッタリ / 下段=残り全部（不足時は曜日カード内がスクロール）
     function reflowRows(){
-      const canvas = document.getElementById('canvasRoot');
-      const topRow = document.getElementById('topRow');
-      const bottomRow = document.getElementById('bottomRow');
+      const canvas=document.getElementById('canvasRoot');
+      const topRow=document.getElementById('topRow');
+      const bottomRow=document.getElementById('bottomRow');
 
-      const rs = getComputedStyle(document.documentElement);
-      const pad = parseFloat(rs.getPropertyValue('--pad-card')) || 10;
-      const headH = parseFloat(rs.getPropertyValue('--head-h')) || 24;
-      const headGap = parseFloat(rs.getPropertyValue('--head-gap')) || 6;
-      const inputH = parseFloat(rs.getPropertyValue('--input-h')) || 26;
-      const listGap = parseFloat(rs.getPropertyValue('--list-gap')) || 2;
-      const rowGap = parseFloat(rs.getPropertyValue('--row-gap')) || 6;
+      const canvasStyle=getComputedStyle(canvas);
+      const padBlock = parseFloat(canvasStyle.paddingTop) + parseFloat(canvasStyle.paddingBottom);
+      const rowGap = parseFloat(getComputedStyle(canvas).rowGap) || 0;
 
-      // カード境界線（上下）
-      const borderSum = 2;
+      // 利用可能高さ（トラック領域のみ）
+      const available = canvas.clientHeight - padBlock - rowGap;
 
-      // 10行カードの必要高さ（見出し+見出し下の余白+行×10+行間×9+パディング×2+枠線）
-      const needCard = pad*2 + borderSum + headH + headGap + (inputH*10) + (listGap*9);
+      // 上段必要高さ＝今月/今週のうち高い方
+      const topCards = topRow.querySelectorAll('.card');
+      const topNeed = Math.max(...Array.from(topCards, neededCardHeight));
 
-      // 上段は「今月」と「今週」のうち背が高い方を採用
-      const topNeed = Math.max(needCard, needCard);
+      // 下段必要高さ（曜日カードは同寸想定。代表1枚でOK）
+      const bottomCard = bottomRow.querySelector('.card');
+      const bottomNeed = neededCardHeight(bottomCard);
 
-      // 下段も曜日カードの必要高さ（同じ）
-      const bottomNeed = needCard;
-
-      // キャンバスの総高さ
-      const canvasH = canvas.clientHeight;
-
-      // 上下を必要高さベースで配分。ただし合計が溢れる場合は比率で縮める
-      let available = canvasH - rowGap; // 上段と下段の間のギャップを引く
-      let topH = topNeed;
-      let bottomH = bottomNeed;
-
-      const sumNeed = topNeed + bottomNeed;
-      if(sumNeed > available){
-        // はみ出す場合は必要量に比例させて圧縮
-        const ratio = available / sumNeed;
-        topH = Math.floor(topNeed * ratio);
-        bottomH = Math.floor(available - topH);
-      }else{
-        // 余りがあるなら、上段が欠けないよう上に優先配分（今回の課題に対応）
-        const extra = available - sumNeed;
-        topH = topNeed + Math.ceil(extra * 0.7); // 上に7割寄せ
-        bottomH = bottomNeed + Math.floor(extra * 0.3);
+      let topH, bottomH;
+      if (topNeed + bottomNeed <= available) {
+        // 余白は下段に集約（上段の下に隙間を作らない）
+        topH = topNeed;
+        bottomH = available - topH;
+      } else {
+        // はみ出すときは上段を優先的に確保
+        topH = topNeed;
+        bottomH = Math.max(0, available - topH);
       }
 
-      // 0未満防止
-      topH = Math.max(0, topH);
-      bottomH = Math.max(0, bottomH);
-
-      // グリッド行の高さをピクセルで指定
       canvas.style.gridTemplateRows = `${topH}px ${bottomH}px`;
     }
 
     // 操作系
-    document.getElementById('clearChecks').onclick = ()=>{
-      Object.keys(state).forEach(k => state[k].forEach(i => i.checked=false));
-      save(); render();
-    };
-    document.getElementById('resetAll').onclick = ()=>{
-      if(confirm('リセットしますか？')){
-        state = JSON.parse(JSON.stringify(initial)); save(); render();
-      }
-    };
-    document.getElementById('exportData').onclick = ()=>{
-      const b = new Blob([JSON.stringify(state)], {type:'application/json'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(b); a.download='todo.json'; a.click();
-    };
-    document.getElementById('importDataInput').onchange = e=>{
-      const f = e.target.files[0];
-      if(f){
-        const r=new FileReader();
-        r.onload=()=>{
-          try{
-            const incoming = JSON.parse(r.result);
-            const next = {};
-            next.month = normalizeToTen(incoming.month);
-            next.week  = normalizeToTen(incoming.week);
-            days.forEach(d => next[d] = normalizeToTen(incoming[d]));
-            state = next; save(); render();
-          }catch{ alert('読み込みに失敗しました'); }
-        };
-        r.readAsText(f);
-      }
-    };
+    clearChecks.onclick=()=>{Object.keys(state).forEach(k=>state[k].forEach(i=>i.checked=false));save();render();};
+    resetAll.onclick=()=>{if(confirm('リセットしますか？')){state=JSON.parse(JSON.stringify(initial));save();render();}};
+    exportData.onclick=()=>{const b=new Blob([JSON.stringify(state)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='todo.json';a.click();};
+    importDataInput.onchange=e=>{const f=e.target.files[0];if(f){const r=new FileReader();r.onload=()=>{try{
+      const incoming=JSON.parse(r.result);
+      state={month:normalizeToTen(incoming.month),week:normalizeToTen(incoming.week)};
+      days.forEach(d=>state[d]=normalizeToTen(incoming[d])); save(); render();
+    }catch{alert('読み込みに失敗しました');}}; r.readAsText(f);}};
 
-    // 端末回転・サイズ変更でも再計算
-    window.addEventListener('resize', ()=>requestAnimationFrame(reflowRows));
-    window.addEventListener('orientationchange', ()=>requestAnimationFrame(reflowRows));
-
+    // 初期描画＋フォント読み込み後/回転/サイズ変更で再計測
     render();
+    if (document.fonts && document.fonts.ready) { document.fonts.ready.then(()=>requestAnimationFrame(reflowRows)); }
+    addEventListener('resize', ()=>requestAnimationFrame(reflowRows));
+    addEventListener('orientationchange', ()=>requestAnimationFrame(reflowRows));
   </script>
 </body>
 </html>
