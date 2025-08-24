@@ -31,12 +31,12 @@
       padding:2px 8px; border-radius:6px; font-size:12px; cursor:pointer; height:26px;
     }
 
-    /* ← ここが重要：dvh優先 + vhフォールバック。safe-areaも考慮 */
+    /* dvh優先（SafariのUIバー変動を回避） */
     .canvas{
-      height:calc(100vh - var(--header-h));            /* fallback */
-      height:calc(100dvh - var(--header-h));           /* modern iPadOS/Safari */
+      height:calc(100vh - var(--header-h));   /* fallback */
+      height:calc(100dvh - var(--header-h));  /* modern iPadOS/Safari */
       padding:6px 6px calc(6px + env(safe-area-inset-bottom)) 6px;
-      display:grid; grid-template-rows: 1fr 1fr; gap:var(--row-gap);
+      display:grid; grid-template-rows:1fr 1fr; gap:var(--row-gap);
       -webkit-overflow-scrolling:touch;
     }
 
@@ -64,6 +64,9 @@
       background:transparent; padding:2px 2px; font-size:14px; font-family:inherit; height:100%;
     }
     .item.checked input.text{ text-decoration:line-through; color:var(--checked); }
+
+    /* ★ 微調整用：下段だけ最終行の下線を消す */
+    .micro-tweak .list .item:last-child input.text{ border-bottom:none; }
 
     @media (orientation:landscape) and (min-width:1024px){
       :root{ --gap:6px; --pad-card:10px; --input-h:26px; --head-h:24px; --head-gap:6px; --list-gap:2px; }
@@ -133,60 +136,88 @@
       requestAnimationFrame(reflowRows);
     }
 
-    // ① カードの必要高さを実測して算出（見出し + リスト10行 + パディング/枠線/ギャップを含む）
+    // 必要高さを実測
     function neededCardHeight(card){
       const cs=getComputedStyle(card);
       const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
       const border = parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
-
       const heading = card.querySelector('h2,h3');
       const hcs = getComputedStyle(heading);
       const headH = heading.getBoundingClientRect().height + parseFloat(hcs.marginBottom);
-
       const list = card.querySelector('.list');
       const lcs = getComputedStyle(list);
-      const gap = parseFloat(lcs.rowGap) || 0;
+      const gap = parseFloat(lcs.rowGap)||parseFloat(lcs.gap)||0;
       const firstItem=list.querySelector('.item');
       const itemH = firstItem ? firstItem.getBoundingClientRect().height : 26;
-
-      const listNeed = (itemH * 10) + (gap * 9);
-
+      const listNeed = (itemH*10) + (gap*9);
       return Math.ceil(pad + border + headH + listNeed);
     }
 
-    // ② 上段=必要分ピッタリ / 下段=残り全部（不足時は曜日カード内がスクロール）
     function reflowRows(){
+      const rootStyle=getComputedStyle(document.documentElement);
+      const baseInputH=parseFloat(rootStyle.getPropertyValue('--input-h'))||26;
+      const baseListGap=parseFloat(rootStyle.getPropertyValue('--list-gap'))||2;
+
       const canvas=document.getElementById('canvasRoot');
       const topRow=document.getElementById('topRow');
       const bottomRow=document.getElementById('bottomRow');
 
+      // いったん下段の微調整を解除してクリーンな状態に
+      bottomRow.classList.remove('micro-tweak');
+      bottomRow.style.removeProperty('--input-h');
+      bottomRow.style.removeProperty('--list-gap');
+
       const canvasStyle=getComputedStyle(canvas);
       const padBlock = parseFloat(canvasStyle.paddingTop) + parseFloat(canvasStyle.paddingBottom);
-      const rowGap = parseFloat(getComputedStyle(canvas).rowGap) || 0;
+      const rowGap = parseFloat(canvasStyle.rowGap) || 0;
+      const available = canvas.clientHeight - padBlock - rowGap; // トラック領域
 
-      // 利用可能高さ（トラック領域のみ）
-      const available = canvas.clientHeight - padBlock - rowGap;
+      const topNeed = Math.max(...Array.from(topRow.querySelectorAll('.card'), neededCardHeight));
+      const bottomNeed0 = neededCardHeight(bottomRow.querySelector('.card'));
 
-      // 上段必要高さ＝今月/今週のうち高い方
-      const topCards = topRow.querySelectorAll('.card');
-      const topNeed = Math.max(...Array.from(topCards, neededCardHeight));
+      // まず素直に配分
+      let topH = Math.ceil(topNeed);
+      let bottomH = Math.max(0, available - topH);
 
-      // 下段必要高さ（曜日カードは同寸想定。代表1枚でOK）
-      const bottomCard = bottomRow.querySelector('.card');
-      const bottomNeed = neededCardHeight(bottomCard);
+      // 下段が足りなければ“必要分だけ”自動で詰める
+      let bottomNeed = bottomNeed0;
+      let deficit = bottomNeed - bottomH;
 
-      let topH, bottomH;
-      if (topNeed + bottomNeed <= available) {
-        // 余白は下段に集約（上段の下に隙間を作らない）
-        topH = topNeed;
-        bottomH = available - topH;
-      } else {
-        // はみ出すときは上段を優先的に確保
-        topH = topNeed;
-        bottomH = Math.max(0, available - topH);
+      if (deficit > 0) {
+        // 1) 最終行の下線を外して +1px
+        bottomRow.classList.add('micro-tweak');
+        bottomNeed = neededCardHeight(bottomRow.querySelector('.card'));
+        deficit = bottomNeed - bottomH;
+      }
+      if (deficit > 0) {
+        // 2) 行間を詰める（9箇所に均等割り）
+        const reduceGap = Math.min(baseListGap, deficit/9);
+        const newGap = Math.max(0, baseListGap - reduceGap);
+        bottomRow.style.setProperty('--list-gap', `${newGap}px`);
+        bottomNeed = neededCardHeight(bottomRow.querySelector('.card'));
+        deficit = bottomNeed - bottomH;
+      }
+      if (deficit > 0) {
+        // 3) 1行の高さを微減（10行で均等割り）: 最大でも1.5px程度まで
+        const reducePerRow = Math.min(1.5, deficit/10);
+        const newH = Math.max(22, baseInputH - reducePerRow);
+        bottomRow.style.setProperty('--input-h', `${newH}px`);
+        bottomNeed = neededCardHeight(bottomRow.querySelector('.card'));
+        deficit = bottomNeed - bottomH;
       }
 
-      canvas.style.gridTemplateRows = `${topH}px ${bottomH}px`;
+      // 最終反映：上段は固定、下段は余り全て
+      const finalBottom = Math.max(bottomH, bottomNeed);
+      const total = topH + finalBottom;
+
+      if (total <= available) {
+        canvas.style.gridTemplateRows = `${topH}px ${available - topH}px`;
+      } else {
+        // どうしてもオーバーする場合は上段を1pxだけ譲って調停（見た目は維持）
+        const needCut = total - available;
+        const shave = Math.min(1, needCut);
+        canvas.style.gridTemplateRows = `${topH - shave}px ${available - (topH - shave)}px`;
+      }
     }
 
     // 操作系
@@ -199,7 +230,6 @@
       days.forEach(d=>state[d]=normalizeToTen(incoming[d])); save(); render();
     }catch{alert('読み込みに失敗しました');}}; r.readAsText(f);}};
 
-    // 初期描画＋フォント読み込み後/回転/サイズ変更で再計測
     render();
     if (document.fonts && document.fonts.ready) { document.fonts.ready.then(()=>requestAnimationFrame(reflowRows)); }
     addEventListener('resize', ()=>requestAnimationFrame(reflowRows));
