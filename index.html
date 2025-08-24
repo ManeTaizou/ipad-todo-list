@@ -8,7 +8,6 @@
     :root{
       --bg:#f4f5f7; --card:#fff; --ink:#172b4d; --muted:#6b778c;
       --border:#dfe1e6; --checked:#9ca3af; --radius:8px;
-      --accent:#0052cc;
       --gap:6px; --pad-card:10px; --input-h:26px; --head-h:24px;
       --head-gap:6px; --row-gap:6px; --list-gap:2px; --header-h:40px;
     }
@@ -69,13 +68,18 @@
     .item input.text{
       width:100%; border:none; border-bottom:1px solid var(--border);
       background:transparent; padding:2px 2px; font-size:14px; font-family:inherit; height:100%;
-      outline:none; box-shadow:none;
+      outline:none !important;
+      box-shadow:none !important;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-focus-ring-color: transparent;
     }
-    /* 入力中は下線だけ強調（青枠は消す） */
+    /* 入力中でも見た目は変えない */
     .item input.text:focus{
-      border-bottom:2px solid var(--accent);
-      outline:none;
-      box-shadow:none;
+      border-bottom:1px solid var(--border);
+      outline:none !important;
+      box-shadow:none !important;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-focus-ring-color: transparent;
     }
     .item.checked input.text{ text-decoration:line-through; color:var(--checked); }
 
